@@ -1,0 +1,123 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  extractor:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Check version
+        shell: bash
+        run: bash extractor/scripts/check-version.sh
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore win-x64
+        working-directory: extractor
+        run: dotnet restore DocExtract.sln -r win-x64 --locked-mode
+
+      - name: Build
+        working-directory: extractor
+        run: dotnet build DocExtract.sln -c Release -r win-x64 --no-restore
+
+      - name: Test
+        working-directory: extractor
+        run: dotnet test DocExtract.sln -c Release -r win-x64 --no-build --no-restore
+
+      - name: Publish folder (win-x64, self-contained, not single-file, not trimmed)
+        working-directory: extractor
+        run: dotnet publish src/DocExtract/DocExtract.csproj -c Release -r win-x64 --self-contained true --no-restore -p:PublishSingleFile=false -p:PublishTrimmed=false -o artifacts/win-x64
+
+      - name: Verify VC++ 2019 x64 runtime
+        shell: pwsh
+        working-directory: extractor
+        run: |
+          $dll = Join-Path $env:SystemRoot "System32\vcruntime140.dll"
+          if (-not (Test-Path $dll)) { throw "VC++ 2019 x64 runtime (vcruntime140.dll) is required to load tesseract50.dll" }
+
+      - name: Fetch tessdata
+        shell: pwsh
+        working-directory: extractor
+        run: ./scripts/fetch-tessdata.ps1 -Dest artifacts/win-x64/tessdata
+
+      - name: Self-test as non-admin
+        shell: pwsh
+        working-directory: extractor
+        run: ./scripts/self-test-nonadmin.ps1 -Exe artifacts/win-x64/DocExtract.exe
+
+      - name: Zip and sha256
+        shell: pwsh
+        working-directory: extractor
+        run: |
+          $version = (bash ./scripts/check-version.sh).Trim()
+          if ($env:GITHUB_REF -like "refs/tags/v*") {
+            if ($env:GITHUB_REF -ne "refs/tags/v$version") { throw "Tag $($env:GITHUB_REF) does not match version $version" }
+          }
+          $name = "DocExtract-win-x64-$version.zip"
+          $zip = Join-Path "artifacts" $name
+          if (Test-Path $zip) { Remove-Item $zip }
+          Compress-Archive -Path artifacts/win-x64/* -DestinationPath $zip
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          Set-Content -Path "$zip.sha256" -Value "$hash  $name" -NoNewline
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: DocExtract-win-x64
+          path: |
+            extractor/artifacts/DocExtract-win-x64-*.zip
+            extractor/artifacts/DocExtract-win-x64-*.zip.sha256
+
+  php:
+    name: PHP ${{ matrix.php }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        php: ["8.2", "8.4"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Check version
+        shell: bash
+        run: bash extractor/scripts/check-version.sh
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, zip
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit
+
+  release:
+    needs: [extractor, php]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: DocExtract-win-x64
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          files: |
+            artifacts/DocExtract-win-x64-*.zip
+            artifacts/DocExtract-win-x64-*.zip.sha256

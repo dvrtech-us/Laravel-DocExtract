@@ -1,0 +1,17 @@
+bin/
+obj/
+artifacts/
+.vs/
+.idea/
+*.user
+*.suo
+TestResults/
+tessdata/*.traineddata
+*.traineddata
+packages.lock.json.bak
+.DS_Store
+
+/vendor/
+/composer.lock
+/.phpunit.cache/
+/.phpunit.result.cache
