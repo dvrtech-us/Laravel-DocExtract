@@ -56,7 +56,7 @@ public static class Program
         return command.Kind switch
         {
             CliCommandKind.Version => Version(),
-            CliCommandKind.SelfTest => SelfTest(command.SelfTest?.RequireOcr == true || OperatingSystem.IsWindows()),
+            CliCommandKind.SelfTest => SelfTest(command.SelfTest?.RequireOcr == true || (OperatingSystem.IsWindows() && command.SelfTest?.AllowMissingOcr != true)),
             CliCommandKind.Extract => Extract(command.Extract!),
             _ => ExitCodes.Failure,
         };

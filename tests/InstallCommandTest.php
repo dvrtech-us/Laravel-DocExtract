@@ -47,7 +47,7 @@ final class InstallCommandTest extends TestCase
         $binary = storage_path('docextract/bin/2.0.0/DocExtract.exe');
         $this->assertFileExists($binary);
         $this->assertFileExists(storage_path('docextract/bin/2.0.0/tessdata/eng.traineddata'));
-        $this->assertSame($binary, config('docextract.binary_path'));
+        $this->assertSame(realpath($binary), realpath(config('docextract.binary_path')));
         Http::assertSent(fn ($request): bool => str_contains(
             $request->url(),
             '/releases/download/v2.0.0/DocExtract-win-x64-2.0.0.zip'

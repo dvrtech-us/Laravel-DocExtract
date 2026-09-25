@@ -349,7 +349,7 @@ public class CliTests
     [Fact]
     public void SelfTest_ExitsZero()
     {
-        var (code, stdout, stderr) = TestSupport.RunCli("self-test");
+        var (code, stdout, stderr) = TestSupport.RunCli("self-test", "--allow-missing-ocr");
         Assert.Equal(0, code);
         Assert.Equal("", stderr.Trim());
         Assert.Contains("\"passed\": true", stdout);

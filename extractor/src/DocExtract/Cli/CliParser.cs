@@ -33,6 +33,8 @@ public sealed class ExtractInvocation
 public sealed class SelfTestInvocation
 {
     public bool RequireOcr { get; init; }
+
+    public bool AllowMissingOcr { get; init; }
 }
 
 public sealed class CliCommand
@@ -181,6 +183,7 @@ public static class CliParser
     public static SelfTestInvocation ParseSelfTest(string[] args)
     {
         var requireOcr = false;
+        var allowMissingOcr = false;
         for (var i = 1; i < args.Length; i++)
         {
             if (args[i] == "--require-ocr")
@@ -189,10 +192,16 @@ public static class CliParser
                 continue;
             }
 
+            if (args[i] == "--allow-missing-ocr")
+            {
+                allowMissingOcr = true;
+                continue;
+            }
+
             throw Usage();
         }
 
-        return new SelfTestInvocation { RequireOcr = requireOcr };
+        return new SelfTestInvocation { RequireOcr = requireOcr, AllowMissingOcr = allowMissingOcr };
     }
 
     public static IReadOnlyList<string> ToArgs(ExtractInvocation invocation, bool child)

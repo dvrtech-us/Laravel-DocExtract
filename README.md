@@ -151,7 +151,7 @@ runs in-process so tests can execute during development, and stdout prints
 DocExtract extract --input <file> --output-dir <dir> [--file-name <original name>]
                    [--max-output-chars 2000000] [--max-depth 3] [--ocr auto|off] [--tables auto|off]
                    [--memory-mb 1024] [--cpu-seconds 90] [--timeout-seconds 100]
-DocExtract self-test [--require-ocr]
+DocExtract self-test [--require-ocr] [--allow-missing-ocr]
 DocExtract version
 ```
 
@@ -161,7 +161,7 @@ skips Job Object setup and runs the extraction in the current process.
 `self-test` builds text, PNG, PDF, DOCX, XLSX, PPTX, EML, MSG, and ZIP
 fixtures in memory, runs each through the pipeline, and prints a JSON report.
 Exit `0` when every kind extracts. `--require-ocr` fails the run when
-Tesseract cannot load. On Windows that requirement is on by default.
+Tesseract cannot load. On Windows that requirement is on by default; `--allow-missing-ocr` turns it off (for unit tests only).
 
 `version` prints JSON:
 
